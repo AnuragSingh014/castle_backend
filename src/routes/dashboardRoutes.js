@@ -1,5 +1,6 @@
 // routes/dashboardRoutes.js
 import { Router } from 'express';
+import multer from 'multer';
 import {
   getDashboardData,
   getCompletionStatus,
@@ -11,7 +12,10 @@ import {
   saveCompanyReferencesData,
   saveDDFormData,
   saveLoanDetailsData,
-  deleteDashboardData
+  deleteDashboardData,
+  uploadPDF,      // ADD this import
+  getUserPDF,     // ADD this import
+  downloadUserPDF
 } from '../controllers/dashboardController.js';
 import { ensureSectionWritable } from '../middleware/sectionGate.js';
 
@@ -38,5 +42,26 @@ router.post('/:userId/component/:component', async (req, res, next) => {
 }, ensureSectionWritable, saveComponentData);
 
 router.delete('/:userId', deleteDashboardData);
+
+
+// ADD: Configure multer for PDF uploads
+const pdfUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'application/pdf') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only PDF files allowed'), false);
+    }
+  }
+});
+
+// ... your existing routes ...
+
+// ADD: PDF routes
+router.post('/:userId/upload-pdf', pdfUpload.single('pdfFile'), uploadPDF);
+router.get('/:userId/pdf', getUserPDF);
+router.get('/:userId/pdf/download', downloadUserPDF);
 
 export default router;

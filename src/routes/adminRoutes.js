@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { adminLogin, adminProfile, adminLogout } from '../controllers/adminAuthController.js';
 import { adminAuthMiddleware } from '../middleware/adminAuthMiddleware.js';
-import { listUsers, getUserDetails, setSectionApproval, setWebsiteDisplayStatus,   getPublishedCompanies} from '../controllers/adminController.js';
+import { listUsers, getUserDetails, setSectionApproval, setWebsiteDisplayStatus,   getPublishedCompanies,  getAllUserPDFs,    adminDownloadPDF } from '../controllers/adminController.js';
 
 const router = Router();
 
@@ -18,5 +18,9 @@ router.get('/users/:userId', getUserDetails);
 router.post('/users/:userId/approve', setSectionApproval);
 router.post('/users/:userId/website-display', setWebsiteDisplayStatus); 
 router.get('/published-companies', getPublishedCompanies); 
+
+// ADD: Admin PDF routes
+router.get('/pdfs', getAllUserPDFs);
+router.get('/users/:userId/pdf/download', adminDownloadPDF);
 
 export default router;

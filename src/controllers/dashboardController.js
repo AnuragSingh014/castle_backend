@@ -234,3 +234,87 @@ export async function deleteDashboardData(req, res) {
     return res.status(500).json({ error: 'internal_error', details: e.message });
   }
 }
+
+
+export async function uploadPDF(req, res) {
+  try {
+    const { userId } = req.params;
+    const { title, description } = req.body;
+    
+    if (!req.file) {
+      return res.status(400).json({ error: 'No PDF file uploaded' });
+    }
+
+    const fileBuffer = req.file.buffer;
+    const base64Data = fileBuffer.toString('base64');
+
+    const doc = await getOrCreateDashboard(userId);
+
+    // Replace existing PDF (not append)
+    doc.pdfDocument = {
+      title: title || req.file.originalname,
+      description: description || '',
+      originalName: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size,
+      data: base64Data,
+      uploadedAt: new Date()
+    };
+
+    await doc.save();
+
+    return res.json({
+      success: true,
+      message: 'PDF uploaded successfully'
+    });
+  } catch (error) {
+    console.error('PDF upload error:', error);
+    return res.status(500).json({ error: 'internal_error', details: error.message });
+  }
+}
+
+// Get user's PDF info
+export async function getUserPDF(req, res) {
+  try {
+    const { userId } = req.params;
+    const doc = await DashboardData.findOne({ userId });
+    
+    if (!doc || !doc.pdfDocument) {
+      return res.json({ success: true, document: null });
+    }
+
+    return res.json({
+      success: true,
+      document: {
+        title: doc.pdfDocument.title,
+        description: doc.pdfDocument.description,
+        originalName: doc.pdfDocument.originalName,
+        size: doc.pdfDocument.size,
+        uploadedAt: doc.pdfDocument.uploadedAt
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({ error: 'internal_error', details: error.message });
+  }
+}
+
+// Download user's PDF
+export async function downloadUserPDF(req, res) {
+  try {
+    const { userId } = req.params;
+    const doc = await DashboardData.findOne({ userId });
+    
+    if (!doc || !doc.pdfDocument) {
+      return res.status(404).json({ error: 'No PDF found' });
+    }
+
+    const buffer = Buffer.from(doc.pdfDocument.data, 'base64');
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${doc.pdfDocument.originalName}"`);
+    
+    return res.send(buffer);
+  } catch (error) {
+    return res.status(500).json({ error: 'internal_error', details: error.message });
+  }
+}
+

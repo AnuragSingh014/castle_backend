@@ -165,3 +165,47 @@ export async function setSectionApproval(req, res) {
   }
 }
 
+// controllers/adminController.js - ADD these functions
+
+// Admin get all user PDFs
+export async function getAllUserPDFs(req, res) {
+  try {
+    const dashboards = await DashboardData.find({ 'pdfDocument': { $exists: true } })
+      .populate('userId', 'name email')
+      .select('userId pdfDocument');
+
+    const userPDFs = dashboards.map(dashboard => ({
+      userId: dashboard.userId._id,
+      userName: dashboard.userId.name,
+      userEmail: dashboard.userId.email,
+      title: dashboard.pdfDocument.title,
+      originalName: dashboard.pdfDocument.originalName,
+      size: dashboard.pdfDocument.size,
+      uploadedAt: dashboard.pdfDocument.uploadedAt
+    }));
+
+    return res.json({ success: true, pdfs: userPDFs });
+  } catch (error) {
+    return res.status(500).json({ error: 'internal_error', details: error.message });
+  }
+}
+
+// Admin download any user's PDF
+export async function adminDownloadPDF(req, res) {
+  try {
+    const { userId } = req.params;
+    const doc = await DashboardData.findOne({ userId });
+    
+    if (!doc || !doc.pdfDocument) {
+      return res.status(404).json({ error: 'No PDF found for this user' });
+    }
+
+    const buffer = Buffer.from(doc.pdfDocument.data, 'base64');
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${doc.pdfDocument.originalName}"`);
+    
+    return res.send(buffer);
+  } catch (error) {
+    return res.status(500).json({ error: 'internal_error', details: error.message });
+  }
+}

@@ -93,6 +93,16 @@ const DashboardDataSchema = new mongoose.Schema({
   // if you need detailed Information Sheet fields, add here
   informationSheet: { type: Object, default: {} },
 
+  pdfDocument: {
+    title: String,
+    description: String,
+    originalName: String,
+    mimetype: String,
+    size: Number,
+    data: String, // base64 encoded PDF
+    uploadedAt: { type: Date, default: Date.now }
+  },
+  
   beneficialOwnerCertification: {
     owners: [{
       name: String,
