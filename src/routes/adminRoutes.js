@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { adminLogin, adminProfile, adminLogout } from '../controllers/adminAuthController.js';
 import { adminAuthMiddleware } from '../middleware/adminAuthMiddleware.js';
-import { listUsers, getUserDetails, setSectionApproval, setWebsiteDisplayStatus,   getPublishedCompanies,  getAllUserPDFs,    adminDownloadPDF } from '../controllers/adminController.js';
+import { listUsers, getUserDetails, setSectionApproval, setWebsiteDisplayStatus,   getPublishedCompanies,  getAllUserPDFs,    adminDownloadPDF, setPublicAmount } from '../controllers/adminController.js';
 
 const router = Router();
 
@@ -22,5 +22,9 @@ router.get('/published-companies', getPublishedCompanies);
 // ADD: Admin PDF routes
 router.get('/pdfs', getAllUserPDFs);
 router.get('/users/:userId/pdf/download', adminDownloadPDF);
+
+// Add this line to routes/adminRoutes.js after your existing routes:
+router.post('/users/:userId/public-amount', setPublicAmount);
+
 
 export default router;

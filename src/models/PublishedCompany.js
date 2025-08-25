@@ -4,7 +4,7 @@ import mongoose from 'mongoose';
 const PublishedCompanySchema = new mongoose.Schema({
   originalUserId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   originalDashboardId: { type: mongoose.Schema.Types.ObjectId, ref: 'DashboardData', required: true },
-  
+  publicAmount: { type: Number, default: 0 },
   // Company Basic Info
   companyInfo: {
     companyName: String,

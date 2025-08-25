@@ -102,9 +102,10 @@ export async function syncToPublishedCompanies(userId, isDisplayed) {
       }
 
       // Prepare data for published table
-      const publishedData = {
+      const publishedData = { 
         originalUserId: userId,
         originalDashboardId: dashboardData._id,
+        publicAmount: dashboardData.publicAmount || 0,
         isActive: true,
         companyInfo: {
           companyName: dashboardData.information?.companyName || '',
@@ -178,7 +179,26 @@ export async function syncToPublishedCompanies(userId, isDisplayed) {
       console.log('✅ SYNC DEBUG: Sync completed successfully');
     } else {
       console.log('🔄 SYNC DEBUG: Disabling company display');
-      // ... existing disable logic
+      console.log('🔄 SYNC DEBUG: Disabling company display');
+  
+      // Find and disable/remove the published company
+      const result = await PublishedCompany.findOneAndUpdate(
+        { originalUserId: userId },
+        { isActive: false },
+        { new: true }
+      );
+    
+      if (!result) {
+        // If not found by originalUserId, try by company name as fallback
+        const dashboardData = await DashboardData.findOne({ userId });
+        if (dashboardData && dashboardData.information?.companyName) {
+          await PublishedCompany.findOneAndUpdate(
+            { 'companyInfo.companyName': dashboardData.information.companyName },
+            { isActive: false },
+            { new: true }
+          );
+        }
+      }
     }
   } catch (error) {
     console.error('🚨 SYNC DEBUG: Error in sync function:', error);

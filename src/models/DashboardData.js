@@ -23,7 +23,7 @@ const AuditEntrySchema = new mongoose.Schema({
 
 const DashboardDataSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
-
+  publicAmount: { type: Number, default: 0 }, 
   // Sections
   isDisplayedOnWebsite: { type: Boolean, default: false },
   information: {

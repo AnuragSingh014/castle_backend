@@ -209,3 +209,26 @@ export async function adminDownloadPDF(req, res) {
     return res.status(500).json({ error: 'internal_error', details: error.message });
   }
 }
+// Add this function to controllers/adminController.js
+export async function setPublicAmount(req, res) {
+  try {
+    const { userId } = req.params;
+    const { amount } = req.body;
+
+    const doc = await DashboardData.findOne({ userId });
+    if (!doc) {
+      return res.status(404).json({ error: 'dashboard_not_found' });
+    }
+
+    doc.publicAmount = parseFloat(amount) || 0;
+    await doc.save();
+
+    return res.json({
+      success: true,
+      message: 'Amount updated successfully',
+      publicAmount: doc.publicAmount
+    });
+  } catch (error) {
+    return res.status(500).json({ error: 'internal_server_error' });
+  }
+}
