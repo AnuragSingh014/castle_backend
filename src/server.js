@@ -14,6 +14,9 @@ import dashboardRoutes from './routes/dashboardRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import publicRoutes from './routes/publicRoutes.js';
 
+
+import investorAuthRoutes from './routes/investorAuthRoutes.js';
+import investorDashboardRoutes from './routes/investorDashboardRoutes.js';
 /* ── setup ────────────────────────────────────────────────── */
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
@@ -57,6 +60,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/admin', adminRoutes);
 
+app.use('/api/investor-auth', investorAuthRoutes);
+app.use('/api/investor-dashboard', investorDashboardRoutes);
 /* health-check */
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 

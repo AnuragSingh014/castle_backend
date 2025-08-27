@@ -3,6 +3,7 @@ import { adminLogin, adminProfile, adminLogout } from '../controllers/adminAuthC
 import { adminAuthMiddleware } from '../middleware/adminAuthMiddleware.js';
 import { listUsers, getUserDetails, setSectionApproval, setWebsiteDisplayStatus,   getPublishedCompanies,  getAllUserPDFs,    adminDownloadPDF, setPublicAmount } from '../controllers/adminController.js';
 
+import { listInvestors, getInvestorDetails } from '../controllers/investorAdminController.js';
 const router = Router();
 
 // Public admin routes (no auth required)
@@ -26,5 +27,8 @@ router.get('/users/:userId/pdf/download', adminDownloadPDF);
 // Add this line to routes/adminRoutes.js after your existing routes:
 router.post('/users/:userId/public-amount', setPublicAmount);
 
+// Add these routes after existing routes
+router.get('/investors', listInvestors);
+router.get('/investors/:investorId', getInvestorDetails);
 
 export default router;
