@@ -1,7 +1,7 @@
 import User from '../models/User.js';
 import DashboardData from '../models/DashboardData.js';
 import { syncToPublishedCompanies } from './publicController.js';
-
+import Admin from '../models/Admin.js';
 export async function setWebsiteDisplayStatus(req, res) {
   try {
     const { userId } = req.params;
@@ -230,5 +230,98 @@ export async function setPublicAmount(req, res) {
     });
   } catch (error) {
     return res.status(500).json({ error: 'internal_server_error' });
+  }
+}
+
+// Admin signature upload
+export async function uploadAdminSignature(req, res) {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No signature file uploaded' });
+    }
+
+    const fileBuffer = req.file.buffer;
+    const base64Data = fileBuffer.toString('base64');
+
+    // Update admin signature (assuming single admin)
+    const admin = await Admin.findOne({ username: req.admin.username });
+    if (!admin) {
+      return res.status(404).json({ error: 'Admin not found' });
+    }
+
+    admin.signature = {
+      data: base64Data,
+      filename: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size,
+      uploadedAt: new Date()
+    };
+
+    await admin.save();
+
+    return res.json({
+      success: true,
+      message: 'Admin signature uploaded successfully'
+    });
+  } catch (error) {
+    console.error('Admin signature upload error:', error);
+    return res.status(500).json({ error: 'internal_error', details: error.message });
+  }
+}
+
+// Get admin signature
+export async function getAdminSignature(req, res) {
+  try {
+    const admin = await Admin.findOne({ username: req.admin.username });
+    if (!admin || !admin.signature) {
+      return res.json({ success: true, signature: null });
+    }
+
+    return res.json({
+      success: true,
+      signature: {
+        filename: admin.signature.filename,
+        mimetype: admin.signature.mimetype,
+        size: admin.signature.size,
+        uploadedAt: admin.signature.uploadedAt,
+        data: admin.signature.data
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({ error: 'internal_error', details: error.message });
+  }
+}
+
+// Admin download user emandate
+export async function downloadUserEmandate(req, res) {
+  try {
+    const { userId } = req.params;
+    
+    // Get user dashboard data
+    const dashboard = await DashboardData.findOne({ userId }).populate('userId', 'name email');
+    if (!dashboard) {
+      return res.status(404).json({ error: 'Dashboard not found' });
+    }
+
+    if (!dashboard.companySignature) {
+      return res.status(404).json({ error: 'Company signature not found' });
+    }
+
+    // Get admin signature
+    const admin = await Admin.findOne({ username: req.admin.username });
+    if (!admin || !admin.signature) {
+      return res.status(404).json({ error: 'Admin signature not found' });
+    }
+
+    // Generate PDF with both signatures
+    const pdfBytes = await generateEmandatePDF(dashboard, admin);
+    
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="emandate_${dashboard.userId.name.replace(/\s+/g, '_')}.pdf"`);
+    return res.send(pdfBytes);
+
+  } catch (error) {
+    console.error('Admin download emandate error:', error);
+    return res.status(500).json({ error: 'internal_error', details: error.message });
   }
 }

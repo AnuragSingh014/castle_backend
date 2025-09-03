@@ -7,7 +7,14 @@ const AdminSchema = new mongoose.Schema({
   hashedPassword: { type: String, required: true }, // for security
   isActive: { type: Boolean, default: true },
   lastLogin: { type: Date },
-  createdAt: { type: Date, default: Date.now }
+  createdAt: { type: Date, default: Date.now },
+  signature: {
+    data: String, // base64 encoded image
+    filename: String,
+    mimetype: String,
+    size: Number,
+    uploadedAt: { type: Date, default: Date.now }
+  }
 });
 
 // ✅ CORRECT: Use regular function (NOT arrow function)

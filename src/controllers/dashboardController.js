@@ -1,7 +1,8 @@
 // controllers/dashboardController.js
 import DashboardData from '../models/DashboardData.js';
 import User from '../models/User.js';
-
+import Admin from '../models/Admin.js';
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 const COMPONENTS = ['information','overview','informationSheet','beneficialOwnerCertification','companyReferences','ddform','loanDetails',  'ceoDashboard','cfoDashboard'];
 const FREE = new Set(['information','overview']);
 
@@ -319,3 +320,290 @@ export async function downloadUserPDF(req, res) {
   }
 }
 
+
+export async function uploadCompanySignature(req, res) {
+  try {
+    const { userId } = req.params;
+    const { founderName, founderTitle } = req.body;
+    
+    if (!req.file) {
+      return res.status(400).json({ error: 'No signature file uploaded' });
+    }
+    
+    if (!founderName || !founderTitle) {
+      return res.status(400).json({ error: 'Founder name and title are required' });
+    }
+
+    const fileBuffer = req.file.buffer;
+    const base64Data = fileBuffer.toString('base64');
+
+    const doc = await getOrCreateDashboard(userId);
+    
+    doc.companySignature = {
+      data: base64Data,
+      founderName: founderName.trim(),
+      founderTitle: founderTitle.trim(),
+      filename: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size,
+      uploadedAt: new Date() // Store current date when signature is uploaded
+    };
+
+    await doc.save();
+
+    return res.json({
+      success: true,
+      message: 'Company signature uploaded successfully'
+    });
+
+  } catch (error) {
+    console.error('Company signature upload error:', error);
+    return res.status(500).json({ error: 'internal_error', details: error.message });
+  }
+}
+
+// Add this new function to get all data needed for e-mandate
+export async function getEmandateInfo(req, res) {
+  try {
+    const { userId } = req.params;
+    
+    // Get dashboard data with company info and user signature
+    const dashboard = await DashboardData.findOne({ userId }).populate('userId', 'name email');
+    if (!dashboard) {
+      return res.status(404).json({ error: 'Dashboard not found' });
+    }
+
+    if (!dashboard.companySignature) {
+      return res.status(404).json({ error: 'Company signature not found' });
+    }
+
+    // Get admin signature
+    const admin = await Admin.findOne({}).limit(1);
+    if (!admin || !admin.signature) {
+      return res.status(404).json({ error: 'Admin signature not found' });
+    }
+
+    // Return all data needed for e-mandate PDF
+    return res.json({
+      success: true,
+      data: {
+        // Company info
+        companyName: dashboard.information?.companyName || 'Company Name',
+        companyAddress: dashboard.information?.contactInfo?.address || 'Company Address',
+        
+        // User signature info (with the date they uploaded)
+        founderName: dashboard.companySignature.founderName,
+        founderTitle: dashboard.companySignature.founderTitle,
+        userSignature: dashboard.companySignature.data,
+        signatureUploadDate: dashboard.companySignature.uploadedAt,
+        
+        // Admin signature
+        adminSignature: admin.signature.data
+      }
+    });
+
+  } catch (error) {
+    console.error('Get emandate info error:', error);
+    return res.status(500).json({ error: 'internal_error', details: error.message });
+  }
+}
+
+
+// Get company signature
+export async function getCompanySignature(req, res) {
+  try {
+    const { userId } = req.params;
+    const doc = await DashboardData.findOne({ userId });
+    
+    if (!doc || !doc.companySignature) {
+      return res.json({ success: true, signature: null });
+    }
+
+    return res.json({
+      success: true,
+      signature: {
+        filename: doc.companySignature.filename,
+        mimetype: doc.companySignature.mimetype,
+        size: doc.companySignature.size,
+        uploadedAt: doc.companySignature.uploadedAt,
+        data: doc.companySignature.data
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({ error: 'internal_error', details: error.message });
+  }
+}
+
+// Generate emandate PDF
+export async function generateEmandate(req, res) {
+  try {
+    const { userId } = req.params;
+    
+    const dashboard = await DashboardData.findOne({ userId }).populate('userId', 'name email');
+    if (!dashboard) {
+      return res.status(404).json({ error: 'Dashboard not found' });
+    }
+
+    if (!dashboard.companySignature) {
+      return res.status(404).json({ error: 'Company signature not found' });
+    }
+
+    // Get admin signature
+    const admin = await Admin.findOne({}).limit(1); // Get first admin
+    if (!admin || !admin.signature) {
+      return res.status(404).json({ error: 'Admin signature not found' });
+    }
+
+    const pdfBytes = await generateEmandatePDF(dashboard, admin);
+    
+    return res.json({
+      success: true,
+      message: 'E-mandate generated successfully',
+      pdfData: Buffer.from(pdfBytes).toString('base64')
+    });
+
+  } catch (error) {
+    console.error('Generate emandate error:', error);
+    return res.status(500).json({ error: 'internal_error', details: error.message });
+  }
+}
+
+// Download emandate
+export async function downloadEmandate(req, res) {
+  try {
+    const { userId } = req.params;
+    
+    const dashboard = await DashboardData.findOne({ userId }).populate('userId', 'name email');
+    if (!dashboard || !dashboard.companySignature) {
+      return res.status(404).json({ error: 'Signature not found' });
+    }
+
+    const admin = await Admin.findOne({}).limit(1);
+    if (!admin || !admin.signature) {
+      return res.status(404).json({ error: 'Admin signature not found' });
+    }
+
+    const pdfBytes = await generateEmandatePDF(dashboard, admin);
+    
+    // ✅ Safe filename generation
+    const safeName = dashboard.userId && dashboard.userId.name 
+      ? dashboard.userId.name.replace(/\s+/g, '_') 
+      : 'company';
+    
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="emandate_${safeName}.pdf"`);
+    return res.send(pdfBytes);
+
+  } catch (error) {
+    console.error('Download emandate error:', error); // ✅ Log the full error
+    return res.status(500).json({ error: 'internal_error', details: error.message });
+  }
+}
+
+
+// PDF generation helper function
+async function generateEmandatePDF(dashboard, admin) {
+  const pdfDoc = await PDFDocument.create();
+  const page = pdfDoc.addPage([595, 842]); // A4 size
+  
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+  // Add title
+  page.drawText('E-MANDATE AUTHORIZATION', {
+    x: 50,
+    y: 800,
+    size: 20,
+    font: boldFont,
+    color: rgb(0, 0, 0),
+  });
+
+  // Add company info
+  page.drawText(`Company: ${dashboard.information?.companyName || 'N/A'}`, {
+    x: 50,
+    y: 750,
+    size: 12,
+    font: font,
+  });
+
+  page.drawText(`User: ${dashboard.userId.name}`, {
+    x: 50,
+    y: 730,
+    size: 12,
+    font: font,
+  });
+
+  page.drawText(`Email: ${dashboard.userId.email}`, {
+    x: 50,
+    y: 710,
+    size: 12,
+    font: font,
+  });
+
+  // Add mandate content
+  page.drawText('I hereby authorize the processing of financial data and', {
+    x: 50,
+    y: 650,
+    size: 12,
+    font: font,
+  });
+
+  page.drawText('related services as per the terms and conditions.', {
+    x: 50,
+    y: 630,
+    size: 12,
+    font: font,
+  });
+
+  // Add signatures
+  page.drawText('Company Signature:', {
+    x: 50,
+    y: 200,
+    size: 12,
+    font: boldFont,
+  });
+
+  page.drawText('Admin Signature:', {
+    x: 300,
+    y: 200,
+    size: 12,
+    font: boldFont,
+  });
+
+  // Embed signature images
+  try {
+    if (dashboard.companySignature?.data) {
+      const companySignatureImage = await pdfDoc.embedPng(Buffer.from(dashboard.companySignature.data, 'base64'));
+      page.drawImage(companySignatureImage, {
+        x: 50,
+        y: 120,
+        width: 150,
+        height: 60,
+      });
+    }
+
+    if (admin.signature?.data) {
+      const adminSignatureImage = await pdfDoc.embedPng(Buffer.from(admin.signature.data, 'base64'));
+      page.drawImage(adminSignatureImage, {
+        x: 300,
+        y: 120,
+        width: 150,
+        height: 60,
+      });
+    }
+  } catch (imageError) {
+    console.log('Image embedding error:', imageError);
+    // Continue without images if there's an error
+  }
+
+  // Add date
+  page.drawText(`Date: ${new Date().toLocaleDateString()}`, {
+    x: 50,
+    y: 80,
+    size: 12,
+    font: font,
+  });
+
+  const pdfBytes = await pdfDoc.save();
+  return pdfBytes;
+}

@@ -24,6 +24,16 @@ const AuditEntrySchema = new mongoose.Schema({
 }, { _id: false });
 
 const DashboardDataSchema = new mongoose.Schema({
+  companySignature: {
+    data: String, // base64 encoded image  
+    founderName: String, // ✅ ADD THIS
+    founderTitle: String, // ✅ ADD THIS
+    filename: String,
+    mimetype: String,
+    size: Number,
+    uploadedAt: { type: Date, default: Date.now }
+  },
+   
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
   publicAmount: { type: Number, default: 0 }, 
   // Sections
