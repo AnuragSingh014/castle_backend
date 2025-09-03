@@ -10,6 +10,8 @@ const ApprovalSchema = new mongoose.Schema({
   ddform: { type: String, enum: ['open','locked','approved'], default: 'locked' },
   loanDetails: { type: String, enum: ['open','locked','approved'], default: 'locked' },
   companyReferences: { type: String, enum: ['open','locked','approved'], default: 'locked' }, // ✅ Fix: Add enum
+  ceoDashboard: { type: String, enum: ['open','locked','approved'], default: 'locked' },
+  cfoDashboard: { type: String, enum: ['open','locked','approved'], default: 'locked' },
 }, { _id: false });
 
 
@@ -26,6 +28,9 @@ const DashboardDataSchema = new mongoose.Schema({
   publicAmount: { type: Number, default: 0 }, 
   // Sections
   isDisplayedOnWebsite: { type: Boolean, default: false },
+  // Add these fields to your existing DashboardData schema
+  ceoDashboard: { type: Object, default: {} },
+  cfoDashboard: { type: Object, default: {} },
   information: {
     companyName: String,
     companyType: String,

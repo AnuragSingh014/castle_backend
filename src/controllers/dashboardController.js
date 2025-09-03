@@ -2,7 +2,7 @@
 import DashboardData from '../models/DashboardData.js';
 import User from '../models/User.js';
 
-const COMPONENTS = ['information','overview','informationSheet','beneficialOwnerCertification','companyReferences','ddform','loanDetails'];
+const COMPONENTS = ['information','overview','informationSheet','beneficialOwnerCertification','companyReferences','ddform','loanDetails',  'ceoDashboard','cfoDashboard'];
 const FREE = new Set(['information','overview']);
 
 async function ensureApprovalFields(doc) {
@@ -16,7 +16,8 @@ async function ensureApprovalFields(doc) {
   if (!approvals.companyReferences) approvals.companyReferences = 'locked';
   if (!approvals.ddform) approvals.ddform = 'locked';
   if (!approvals.loanDetails) approvals.loanDetails = 'locked';
-  
+  if (!approvals.ceoDashboard) approvals.ceoDashboard = 'locked';
+  if (!approvals.cfoDashboard) approvals.cfoDashboard = 'locked'
   doc.approvals = approvals;
   return doc;
 }
