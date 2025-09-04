@@ -3,7 +3,8 @@ import DashboardData from '../models/DashboardData.js';
 import User from '../models/User.js';
 import Admin from '../models/Admin.js';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
-const COMPONENTS = ['information','overview','informationSheet','beneficialOwnerCertification','companyReferences','ddform','loanDetails',  'ceoDashboard','cfoDashboard'];
+
+const COMPONENTS = ['information','overview','informationSheet','beneficialOwnerCertification','companyReferences','ddform','loanDetails','ceoDashboard','cfoDashboard','loanRequest']; // ✅ ADDED loanRequest
 const FREE = new Set(['information','overview']);
 
 async function ensureApprovalFields(doc) {
@@ -18,25 +19,31 @@ async function ensureApprovalFields(doc) {
   if (!approvals.ddform) approvals.ddform = 'locked';
   if (!approvals.loanDetails) approvals.loanDetails = 'locked';
   if (!approvals.ceoDashboard) approvals.ceoDashboard = 'locked';
-  if (!approvals.cfoDashboard) approvals.cfoDashboard = 'locked'
+  if (!approvals.cfoDashboard) approvals.cfoDashboard = 'locked';
+  // ✅ NEW: Add loanRequest approval field
+  if (!approvals.loanRequest) approvals.loanRequest = 'locked';
+  
   doc.approvals = approvals;
   return doc;
 }
 
-// ✅ SINGLE getOrCreateDashboard function with 'approved' values
+// ✅ UPDATED getOrCreateDashboard function with loanRequest approval
 async function getOrCreateDashboard(userId) {
   let doc = await DashboardData.findOne({ userId });
   if (!doc) {
     doc = await DashboardData.create({ 
       userId,
       approvals: {
-        information: 'approved',        // ✅ Use 'approved' to match frontend
-        overview: 'approved',           // ✅ Use 'approved' to match frontend
+        information: 'approved',
+        overview: 'approved',
         informationSheet: 'locked',
         beneficialOwnerCertification: 'locked',
         companyReferences: 'locked',
         ddform: 'locked',
-        loanDetails: 'locked'
+        loanDetails: 'locked',
+        ceoDashboard: 'locked',
+        cfoDashboard: 'locked',
+        loanRequest: 'locked' // ✅ NEW: Default to locked
       }
     });
   } else {
@@ -45,6 +52,39 @@ async function getOrCreateDashboard(userId) {
     await doc.save();
   }
   return doc;
+}
+
+// ✅ NEW: Middleware to check loan request access
+export async function checkLoanRequestAccess(req, res, next) {
+  try {
+    const { userId } = req.params;
+    const doc = await DashboardData.findOne({ userId });
+    
+    if (!doc) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'dashboard_not_found' 
+      });
+    }
+    
+    // Check if loan request section is approved
+    const approvalStatus = doc.approvals?.loanRequest || 'locked';
+    if (approvalStatus !== 'approved') {
+      return res.status(403).json({ 
+        success: false,
+        error: 'access_denied', 
+        message: 'Loan request section requires admin approval to access' 
+      });
+    }
+    
+    next();
+  } catch (error) {
+    console.error('Loan request access check error:', error);
+    return res.status(500).json({ 
+      success: false,
+      error: 'internal_server_error' 
+    });
+  }
 }
 
 function calculateCompletionPercentage(d) {
@@ -174,7 +214,6 @@ export async function saveComponentData(req, res) {
   }
 }
 
-
 // Convenience aliases using the generic save method
 export const saveInformationData = (req, res) => { req.params.component = 'information'; return saveComponentData(req, res); };
 export const saveOverviewData = (req, res) => { req.params.component = 'overview'; return saveComponentData(req, res); };
@@ -182,6 +221,7 @@ export const saveInformationSheetData = (req, res) => { req.params.component = '
 export const saveBeneficialOwnerData = (req, res) => { req.params.component = 'beneficialOwnerCertification'; return saveComponentData(req, res); };
 export const saveCompanyReferencesData = (req, res) => { req.params.component = 'companyReferences'; return saveComponentData(req, res); };
 export const saveLoanDetailsData = (req, res) => { req.params.component = 'loanDetails'; return saveComponentData(req, res); };
+
 // Add this new function in controllers/dashboardController.js
 export const saveDDFormData = async (req, res) => {
   try {
@@ -224,8 +264,6 @@ export const saveDDFormData = async (req, res) => {
   }
 };
 
-
-
 export async function deleteDashboardData(req, res) {
   try {
     const { userId } = req.params;
@@ -236,7 +274,6 @@ export async function deleteDashboardData(req, res) {
     return res.status(500).json({ error: 'internal_error', details: e.message });
   }
 }
-
 
 export async function uploadPDF(req, res) {
   try {
@@ -319,7 +356,6 @@ export async function downloadUserPDF(req, res) {
     return res.status(500).json({ error: 'internal_error', details: error.message });
   }
 }
-
 
 export async function uploadCompanySignature(req, res) {
   try {
@@ -407,7 +443,6 @@ export async function getEmandateInfo(req, res) {
     return res.status(500).json({ error: 'internal_error', details: error.message });
   }
 }
-
 
 // Get company signature
 export async function getCompanySignature(req, res) {
@@ -500,6 +535,134 @@ export async function downloadEmandate(req, res) {
   }
 }
 
+// ✅ UPDATED: Enhanced saveLoanRequest function with validation and gating check
+export async function saveLoanRequest(req, res) {
+  try {
+    const { userId } = req.params;
+    const { loanAmountRequired, expectedROI, tenure, tenureUnit, loanType, loanPurpose } = req.body;
+    
+    // Validate required fields
+    if (!loanAmountRequired || loanAmountRequired <= 0) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'loan_amount_required',
+        message: 'Loan amount is required and must be greater than 0'
+      });
+    }
+    
+    if (!expectedROI || expectedROI <= 0) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'expected_roi_required',
+        message: 'Expected ROI is required and must be greater than 0'
+      });
+    }
+    
+    if (!tenure || tenure <= 0) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'tenure_required',
+        message: 'Tenure is required and must be greater than 0'
+      });
+    }
+
+    const doc = await DashboardData.findOne({ userId });
+    if (!doc) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'dashboard_not_found' 
+      });
+    }
+    
+    // Update loan request data
+    doc.loanRequest = {
+      loanAmountRequired: parseFloat(loanAmountRequired),
+      expectedROI: parseFloat(expectedROI),
+      tenure: parseInt(tenure),
+      tenureUnit: tenureUnit || 'months',
+      loanType: loanType || '',
+      loanPurpose: loanPurpose || '',
+      submittedAt: new Date(),
+      status: 'submitted'
+    };
+    
+    // Add audit entry
+    doc.audit.push({
+      actorType: 'user',
+      actorId: userId,
+      action: 'save_loan_request',
+      meta: { 
+        loanAmountRequired: parseFloat(loanAmountRequired), 
+        expectedROI: parseFloat(expectedROI), 
+        tenure: parseInt(tenure),
+        loanType,
+        loanPurpose
+      }
+    });
+    
+    await doc.save();
+    
+    return res.status(200).json({ 
+      success: true, 
+      loanRequest: doc.loanRequest,
+      message: 'Loan request saved successfully'
+    });
+
+  } catch (error) {
+    console.error('Error saving loan request:', error);
+    return res.status(500).json({ 
+      success: false, 
+      error: 'internal_server_error',
+      message: error.message 
+    });
+  }
+}
+
+// ✅ UPDATED: Enhanced getLoanRequest function  
+export async function getLoanRequest(req, res) {
+  try {
+    const { userId } = req.params;
+    
+    // Validate userId
+    if (!userId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'user_id_required' 
+      });
+    }
+
+    const doc = await DashboardData.findOne({ userId });
+    if (!doc) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'dashboard_not_found' 
+      });
+    }
+
+    // Return loan request data (will be null/empty if not submitted yet)
+    return res.status(200).json({
+      success: true,
+      loanRequest: doc.loanRequest || {
+        loanAmountRequired: 0,
+        expectedROI: 0,
+        tenure: 0,
+        tenureUnit: 'months',
+        loanType: '',
+        loanPurpose: '',
+        submittedAt: null,
+        status: 'draft'
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching loan request:', error);
+    return res.status(500).json({ 
+      success: false, 
+      error: 'internal_server_error',
+      message: error.message 
+    });
+  }
+}
 
 // PDF generation helper function
 async function generateEmandatePDF(dashboard, admin) {

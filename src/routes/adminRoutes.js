@@ -1,12 +1,29 @@
 import { Router } from 'express';
 import { adminLogin, adminProfile, adminLogout } from '../controllers/adminAuthController.js';
 import { adminAuthMiddleware } from '../middleware/adminAuthMiddleware.js';
-import { listUsers, getUserDetails, setSectionApproval, setWebsiteDisplayStatus,   getPublishedCompanies,  getAllUserPDFs,    adminDownloadPDF, setPublicAmount,
+import { 
+  listUsers, 
+  getUserDetails, 
+  setSectionApproval, 
+  setWebsiteDisplayStatus,   
+  getPublishedCompanies,  
+  getAllUserPDFs,    
+  adminDownloadPDF, 
+  setPublicAmount,
+  uploadAdminSignature, 
+  getAdminSignature, 
+  downloadUserEmandate,
+  // ✅ NEW: Import separate CEO/CFO approval functions
+  setCompanyCeoDashboardApproval,
+  setCompanyCfoDashboardApproval,
+  setInvestorSectionApproval,
+  // ✅ NEW: Import loan request approval function
+  setLoanRequestApproval
 } from '../controllers/adminController.js';
 import multer from 'multer';
 import { listInvestors, getInvestorDetails } from '../controllers/investorAdminController.js';
+
 const router = Router();
-import { uploadAdminSignature, getAdminSignature, downloadUserEmandate } from '../controllers/adminController.js';
 
 // Public admin routes (no auth required)
 router.post('/login', adminLogin);
@@ -18,7 +35,21 @@ router.get('/profile', adminProfile);
 router.post('/logout', adminLogout);
 router.get('/users', listUsers);
 router.get('/users/:userId', getUserDetails);
+
+// ✅ EXISTING: General section approval (for informationSheet, loanDetails, etc.)
 router.post('/users/:userId/approve', setSectionApproval);
+
+// ✅ NEW: Separate routes for company CEO/CFO dashboard approvals
+router.post('/users/:userId/approve-ceo-dashboard', setCompanyCeoDashboardApproval);
+router.post('/users/:userId/approve-cfo-dashboard', setCompanyCfoDashboardApproval);
+
+// ✅ NEW: Loan request approval route
+router.post('/users/:userId/approve-loan-request', setLoanRequestApproval);
+
+// ✅ NEW: Separate routes for investor CEO/CFO dashboard approvals
+router.post('/investors/:investorId/approve-ceo-dashboard', setInvestorSectionApproval);
+router.post('/investors/:investorId/approve-cfo-dashboard', setInvestorSectionApproval);
+
 router.post('/users/:userId/website-display', setWebsiteDisplayStatus); 
 router.get('/published-companies', getPublishedCompanies); 
 
@@ -32,8 +63,6 @@ router.post('/users/:userId/public-amount', setPublicAmount);
 // Add these routes after existing routes
 router.get('/investors', listInvestors);
 router.get('/investors/:investorId', getInvestorDetails);
-
-
 
 // Configure multer for image uploads
 const imageUpload = multer({

@@ -1,7 +1,9 @@
 import User from '../models/User.js';
 import DashboardData from '../models/DashboardData.js';
+import InvestorDashboardData from '../models/InvestorDashboardData.js';
 import { syncToPublishedCompanies } from './publicController.js';
 import Admin from '../models/Admin.js';
+
 export async function setWebsiteDisplayStatus(req, res) {
   try {
     const { userId } = req.params;
@@ -76,9 +78,6 @@ export async function getUserDetails(req, res) {
   }
 }
 
-// Add this new function for website display approval
-
-
 // Add route to get published companies for website
 export async function getPublishedCompanies(req, res) {
   try {
@@ -102,7 +101,6 @@ export async function getPublishedCompanies(req, res) {
     });
   }
 }
-
 
 export async function setSectionApproval(req, res) {
   try {
@@ -165,7 +163,203 @@ export async function setSectionApproval(req, res) {
   }
 }
 
-// controllers/adminController.js - ADD these functions
+// ✅ NEW: Separate function for company CEO dashboard approval
+export async function setCompanyCeoDashboardApproval(req, res) {
+  try {
+    console.log('=== setCompanyCeoDashboardApproval called ===');
+    console.log('userId:', req.params.userId);
+    console.log('body:', req.body);
+    
+    const { userId } = req.params;
+    const { state } = req.body; // 'approved' or 'locked'
+
+    if (!['locked','approved','open'].includes(state)) {
+      return res.status(400).json({ error: 'invalid_state' });
+    }
+
+    const doc = await DashboardData.findOne({ userId });
+    if (!doc) return res.status(404).json({ error: 'dashboard_not_found' });
+
+    doc.approvals.ceoDashboard = state;
+    doc.audit.push({
+      actorType: 'admin',
+      actorId: req.admin.username,
+      action: 'set_ceo_dashboard_approval',
+      meta: { state }
+    });
+
+    await doc.save();
+
+    if (req.app.get('io')) {
+      req.app.get('io').to(`user:${userId}`).emit('approval:update', { 
+        component: 'ceoDashboard', 
+        state 
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      approvals: doc.approvals,
+      message: `CEO Dashboard ${state}`
+    });
+  } catch (error) {
+    console.error('setCompanyCeoDashboardApproval error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'internal_server_error',
+      message: error.message
+    });
+  }
+}
+
+// ✅ NEW: Separate function for company CFO dashboard approval
+export async function setCompanyCfoDashboardApproval(req, res) {
+  try {
+    console.log('=== setCompanyCfoDashboardApproval called ===');
+    console.log('userId:', req.params.userId);
+    console.log('body:', req.body);
+    
+    const { userId } = req.params;
+    const { state } = req.body; // 'approved' or 'locked'
+
+    if (!['locked','approved','open'].includes(state)) {
+      return res.status(400).json({ error: 'invalid_state' });
+    }
+
+    const doc = await DashboardData.findOne({ userId });
+    if (!doc) return res.status(404).json({ error: 'dashboard_not_found' });
+
+    doc.approvals.cfoDashboard = state;
+    doc.audit.push({
+      actorType: 'admin',
+      actorId: req.admin.username,
+      action: 'set_cfo_dashboard_approval',
+      meta: { state }
+    });
+
+    await doc.save();
+
+    if (req.app.get('io')) {
+      req.app.get('io').to(`user:${userId}`).emit('approval:update', { 
+        component: 'cfoDashboard', 
+        state 
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      approvals: doc.approvals,
+      message: `CFO Dashboard ${state}`
+    });
+  } catch (error) {
+    console.error('setCompanyCfoDashboardApproval error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'internal_server_error',
+      message: error.message
+    });
+  }
+}
+
+// ✅ NEW: Set approval for investor CEO/CFO dashboard
+export async function setInvestorSectionApproval(req, res) {
+  try {
+    console.log('=== setInvestorSectionApproval called ===');
+    console.log('investorId:', req.params.investorId);
+    console.log('body:', req.body);
+    
+    const { investorId } = req.params;
+    const { state } = req.body;
+    
+    // Determine component from route path
+    const component = req.route.path.includes('ceo') ? 'ceoDashboard' : 'cfoDashboard';
+
+    if (!['locked','approved','open'].includes(state)) {
+      return res.status(400).json({ error: 'invalid_state' });
+    }
+
+    let doc = await InvestorDashboardData.findOne({ investorId });
+    if (!doc) {
+      doc = new InvestorDashboardData({ investorId });
+    }
+
+    if (!doc.approvals) {
+      doc.approvals = {};
+    }
+
+    doc.approvals[component] = state;
+    doc.audit.push({
+      actorType: 'admin',
+      actorId: req.admin.username,
+      action: `set_investor_${component}_approval`,
+      meta: { state }
+    });
+
+    await doc.save();
+
+    return res.status(200).json({
+      success: true,
+      approvals: doc.approvals,
+      message: `Investor ${component} ${state}`
+    });
+  } catch (error) {
+    console.error('setInvestorSectionApproval error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'internal_server_error',
+      message: error.message
+    });
+  }
+}
+
+// ✅ NEW: Function to toggle loan request approval
+export async function setLoanRequestApproval(req, res) {
+  try {
+    console.log('=== setLoanRequestApproval called ===');
+    console.log('userId:', req.params.userId);
+    console.log('body:', req.body);
+    
+    const { userId } = req.params;
+    const { state } = req.body; // 'approved' or 'locked'
+
+    if (!['locked','approved','open'].includes(state)) {
+      return res.status(400).json({ error: 'invalid_state' });
+    }
+
+    const doc = await DashboardData.findOne({ userId });
+    if (!doc) return res.status(404).json({ error: 'dashboard_not_found' });
+
+    doc.approvals.loanRequest = state;
+    doc.audit.push({
+      actorType: 'admin',
+      actorId: req.admin.username,
+      action: 'set_loan_request_approval',
+      meta: { state }
+    });
+
+    await doc.save();
+
+    if (req.app.get('io')) {
+      req.app.get('io').to(`user:${userId}`).emit('approval:update', { 
+        component: 'loanRequest', 
+        state 
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      approvals: doc.approvals,
+      message: `Loan Request ${state}`
+    });
+  } catch (error) {
+    console.error('setLoanRequestApproval error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'internal_server_error',
+      message: error.message
+    });
+  }
+}
 
 // Admin get all user PDFs
 export async function getAllUserPDFs(req, res) {
@@ -209,6 +403,7 @@ export async function adminDownloadPDF(req, res) {
     return res.status(500).json({ error: 'internal_error', details: error.message });
   }
 }
+
 // Add this function to controllers/adminController.js
 export async function setPublicAmount(req, res) {
   try {

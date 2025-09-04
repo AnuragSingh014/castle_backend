@@ -9,11 +9,12 @@ const ApprovalSchema = new mongoose.Schema({
   beneficialOwnerCertification: { type: String, enum: ['open','locked','approved'], default: 'locked' },
   ddform: { type: String, enum: ['open','locked','approved'], default: 'locked' },
   loanDetails: { type: String, enum: ['open','locked','approved'], default: 'locked' },
-  companyReferences: { type: String, enum: ['open','locked','approved'], default: 'locked' }, // ✅ Fix: Add enum
+  companyReferences: { type: String, enum: ['open','locked','approved'], default: 'locked' },
   ceoDashboard: { type: String, enum: ['open','locked','approved'], default: 'locked' },
   cfoDashboard: { type: String, enum: ['open','locked','approved'], default: 'locked' },
+  // ✅ NEW: Add loan request approval field for gating
+  loanRequest: { type: String, enum: ['open','locked','approved'], default: 'locked' },
 }, { _id: false });
-
 
 const AuditEntrySchema = new mongoose.Schema({
   actorType: { type: String, enum: ['user','admin'], required: true },
@@ -25,9 +26,9 @@ const AuditEntrySchema = new mongoose.Schema({
 
 const DashboardDataSchema = new mongoose.Schema({
   companySignature: {
-    data: String, // base64 encoded image  
-    founderName: String, // ✅ ADD THIS
-    founderTitle: String, // ✅ ADD THIS
+    data: String, // base64 encoded image
+    founderName: String,
+    founderTitle: String,
     filename: String,
     mimetype: String,
     size: Number,
@@ -36,11 +37,14 @@ const DashboardDataSchema = new mongoose.Schema({
    
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
   publicAmount: { type: Number, default: 0 }, 
+  
   // Sections
   isDisplayedOnWebsite: { type: Boolean, default: false },
+  
   // Add these fields to your existing DashboardData schema
   ceoDashboard: { type: Object, default: {} },
   cfoDashboard: { type: Object, default: {} },
+  
   information: {
     companyName: String,
     companyType: String,
@@ -129,7 +133,12 @@ const DashboardDataSchema = new mongoose.Schema({
       sourceOfFunds: String,
       documents: [{
         type: String,
-        filename: String, originalName: String, mimetype: String, size: Number, path: String, uploadedAt: { type: Date, default: Date.now }
+        filename: String, 
+        originalName: String, 
+        mimetype: String, 
+        size: Number, 
+        path: String, 
+        uploadedAt: { type: Date, default: Date.now }
       }]
     }],
     certificationDate: { type: Date, default: Date.now },
@@ -177,8 +186,25 @@ const DashboardDataSchema = new mongoose.Schema({
     },
     documents: [{
       type: String,
-      filename: String, originalName: String, mimetype: String, size: Number, path: String, uploadedAt: { type: Date, default: Date.now }
+      filename: String, 
+      originalName: String, 
+      mimetype: String, 
+      size: Number, 
+      path: String, 
+      uploadedAt: { type: Date, default: Date.now }
     }]
+  },
+
+  // ✅ NEW: Add loan request section with all required fields
+  loanRequest: {
+    loanAmountRequired: { type: Number, default: 0 },
+    expectedROI: { type: Number, default: 0 }, // Can be percentage like 12.5
+    tenure: { type: Number, default: 0 }, // In months or years
+    tenureUnit: { type: String, enum: ['months', 'years'], default: 'months' },
+    loanType: { type: String, default: '' }, // First dropdown (string)
+    loanPurpose: { type: String, default: '' }, // Second dropdown (string)
+    submittedAt: { type: Date, default: null },
+    status: { type: String, enum: ['draft', 'submitted', 'reviewed'], default: 'draft' }
   },
 
   loanDetails: {
@@ -241,8 +267,6 @@ const DashboardDataSchema = new mongoose.Schema({
       progress: Number
     }
   },
-  
-  
 
   approvals: { type: ApprovalSchema, default: () => ({}) },
 

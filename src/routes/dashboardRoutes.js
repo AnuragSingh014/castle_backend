@@ -13,20 +13,22 @@ import {
   saveDDFormData,
   saveLoanDetailsData,
   deleteDashboardData,
-  uploadPDF,      // ADD this import
-  getUserPDF,     // ADD this import
+  uploadPDF,      
+  getUserPDF,     
   downloadUserPDF,
   uploadCompanySignature,
   getCompanySignature,
   generateEmandate,
   downloadEmandate,
-  getEmandateInfo
+  getEmandateInfo, 
+  saveLoanRequest, 
+  getLoanRequest,
+  checkLoanRequestAccess  // ✅ NEW: Import the middleware
 } from '../controllers/dashboardController.js';
 import { ensureSectionWritable } from '../middleware/sectionGate.js';
 
 const router = Router();
 
-// ADD THIS SECTION AFTER YOUR EXISTING IMPORTS
 // Configure multer for image uploads (signatures)
 const imageUpload = multer({
   storage: multer.memoryStorage(),
@@ -56,6 +58,10 @@ router.post('/:userId/company-references', ensureSectionWritable, saveCompanyRef
 router.post('/:userId/ddform', ensureSectionWritable, saveDDFormData);
 router.post('/:userId/loan-details', ensureSectionWritable, saveLoanDetailsData);
 
+// ✅ NEW: Loan Request routes with gating middleware applied
+router.post('/:userId/loan-request', checkLoanRequestAccess, saveLoanRequest);
+router.get('/:userId/loan-request', checkLoanRequestAccess, getLoanRequest);
+
 // Generic endpoint (applies gate if not free)
 router.post('/:userId/component/:component', async (req, res, next) => {
   req.params.componentGateChecked = true;
@@ -64,8 +70,7 @@ router.post('/:userId/component/:component', async (req, res, next) => {
 
 router.delete('/:userId', deleteDashboardData);
 
-
-// ADD: Configure multer for PDF uploads
+// Configure multer for PDF uploads
 const pdfUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
@@ -78,14 +83,12 @@ const pdfUpload = multer({
   }
 });
 
-// ... your existing routes ...
-
-// ADD: PDF routes
+// PDF routes
 router.post('/:userId/upload-pdf', pdfUpload.single('pdfFile'), uploadPDF);
 router.get('/:userId/pdf', getUserPDF);
 router.get('/:userId/pdf/download', downloadUserPDF);
 
-// Add these routes after your existing ones
+// Signature and e-mandate routes
 router.post('/:userId/upload-signature', imageUpload.single('signature'), uploadCompanySignature);
 router.get('/:userId/signature', getCompanySignature);
 router.get('/:userId/emandate/generate', generateEmandate);
