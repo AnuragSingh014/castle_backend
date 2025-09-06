@@ -41,3 +41,36 @@ export async function listInvestors(req, res) {
   }
 }
 
+// Add to investorAdminController.js
+export async function getInvestorInvestments(req, res) {
+  try {
+    const { investorId } = req.params;
+    
+    const dashboardData = await InvestorDashboardData.findOne({ investorId });
+    if (!dashboardData) {
+      return res.status(404).json({ error: 'Investor dashboard not found' });
+    }
+
+    // Deserialize additional details
+    const investments = dashboardData.investmentPortfolio.map(investment => {
+      const investmentObj = investment.toObject();
+      try {
+        investmentObj.additionalDetails = JSON.parse(investment.additionalDetails || '{}');
+      } catch (e) {
+        investmentObj.additionalDetails = {};
+      }
+      return investmentObj;
+    });
+
+    return res.json({ 
+      success: true,
+      data: { 
+        investments,
+        totalInvestments: investments.length 
+      }
+    });
+  } catch (error) {
+    console.error('GetInvestorInvestments error:', error);
+    return res.status(500).json({ error: 'internal_server_error' });
+  }
+}

@@ -69,6 +69,35 @@ class InvestorApiService {
       method: 'DELETE'
     });
   }
+
+  // Add these methods to your existing InvestorApiService class
+
+// Investment Portfolio API methods
+async getInvestmentPortfolio(investorId) {
+  return this.makeRequest(`/${investorId}/investments`);
+}
+
+async addInvestment(investorId, investmentData) {
+  return this.makeRequest(`/${investorId}/investments`, {
+    method: 'POST',
+    body: JSON.stringify(investmentData)
+  });
+}
+
+async updateInvestment(investorId, investmentId, investmentData) {
+  return this.makeRequest(`/${investorId}/investments/${investmentId}`, {
+    method: 'PUT',
+    body: JSON.stringify(investmentData)
+  });
+}
+
+async deleteInvestment(investorId, investmentId) {
+  return this.makeRequest(`/${investorId}/investments/${investmentId}`, {
+    method: 'DELETE'
+  });
+}
+
+
 }
 
 // Create and export a singleton instance

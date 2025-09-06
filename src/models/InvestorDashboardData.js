@@ -159,6 +159,35 @@ const AuditEntrySchema = new mongoose.Schema({
   at: { type: Date, default: Date.now }
 }, { _id: false });
 
+// Add this to your existing InvestorDashboardData.js model
+
+// Investment Portfolio Schema
+// Add this new schema after InvestorProfileSchema
+const InvestmentRecordSchema = new mongoose.Schema({
+  companyName: { type: String, required: true },
+  amountInvested: { type: Number, required: true },
+  yearOfInvestment: { type: Number, required: true },
+  investmentDate: { type: Date },
+  valuationAtInvestment: { type: Number },
+  currentValuation: { type: Number },
+  stakePercentage: { type: Number },
+  investmentRound: { type: String },
+  leadInvestor: { type: String },
+  coInvestors: [{ type: String }],
+  exitDate: { type: Date },
+  exitAmount: { type: Number },
+  currentStatus: { 
+    type: String, 
+    enum: ['Active', 'Exited', 'Written Off', 'IPO', 'Acquired'], 
+    default: 'Active' 
+  },
+  notes: { type: String },
+  additionalDetails: { type: String, default: '{}' },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
+}, { _id: true });
+
+
 // Main Investor Dashboard Data Schema
 const InvestorDashboardDataSchema = new mongoose.Schema({
   investorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Investor', required: true, unique: true },
@@ -169,6 +198,9 @@ const InvestorDashboardDataSchema = new mongoose.Schema({
   ceoDashboard: { type: CEODashboardSchema, default: () => ({}) },
   cfoDashboard: { type: CFODashboardSchema, default: () => ({}) },
   
+    // ✅ NEW: Investment Portfolio
+    investmentPortfolio: { type: [InvestmentRecordSchema], default: [] },
+
   // ✅ Add approval system for investors
   approvals: { type: InvestorApprovalSchema, default: () => ({}) },
   
@@ -187,6 +219,7 @@ const InvestorDashboardDataSchema = new mongoose.Schema({
   audit: [AuditEntrySchema]
   
 }, { timestamps: true });
+
 
 InvestorDashboardDataSchema.index({ investorId: 1 }, { unique: true });
 InvestorDashboardDataSchema.index({ lastUpdated: -1 });

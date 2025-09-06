@@ -520,3 +520,105 @@ export async function downloadUserEmandate(req, res) {
     return res.status(500).json({ error: 'internal_error', details: error.message });
   }
 }
+
+// Replace the existing getInvestorInvestments function with this:
+export async function getInvestorInvestments(req, res) {
+  try {
+    const { investorId } = req.params;
+    
+    const dashboardData = await InvestorDashboardData.findOne({ investorId });
+    if (!dashboardData) {
+      return res.status(404).json({ error: 'Investor dashboard not found' });
+    }
+
+    // ✅ FIX: Safely handle undefined investmentPortfolio
+    const investmentPortfolio = dashboardData.investmentPortfolio || [];
+
+    // Deserialize additional details
+    const investments = investmentPortfolio.map(investment => {
+      const investmentObj = investment.toObject();
+      try {
+        investmentObj.additionalDetails = JSON.parse(investment.additionalDetails || '{}');
+      } catch (e) {
+        investmentObj.additionalDetails = {};
+      }
+      return investmentObj;
+    });
+
+    // Calculate summary
+    const summary = calculateInvestmentSummary(investments);
+
+    return res.json({
+      success: true,
+      data: {
+        investments,
+        summary,
+        totalInvestments: investments.length
+      }
+    });
+  } catch (error) {
+    console.error('GetInvestorInvestments error:', error);
+    return res.status(500).json({ error: 'internal_server_error' });
+  }
+}
+
+// Add the calculateInvestmentSummary function
+function calculateInvestmentSummary(investments = []) {
+  const summary = {
+    totalInvestments: 0,
+    totalAmountInvested: 0,
+    totalCurrentValue: 0,
+    activeInvestments: 0,
+    exitedInvestments: 0,
+    totalReturns: 0,
+    averageStake: 0,
+    investmentsByYear: {},
+    investmentsByStatus: {}
+  };
+
+  if (!Array.isArray(investments) || investments.length === 0) {
+    return summary;
+  }
+
+  summary.totalInvestments = investments.length;
+
+  investments.forEach(inv => {
+    summary.totalAmountInvested += inv.amountInvested || 0;
+    
+    if (inv.currentStatus === 'Active') {
+      const currentValue = inv.currentValuation && inv.stakePercentage 
+        ? inv.currentValuation * (inv.stakePercentage / 100) 
+        : inv.amountInvested;
+      summary.totalCurrentValue += currentValue;
+      summary.activeInvestments++;
+    } else if (inv.currentStatus === 'Exited') {
+      summary.totalReturns += (inv.exitAmount || 0) - (inv.amountInvested || 0);
+      summary.exitedInvestments++;
+    }
+
+    // Group by year and status
+    const year = inv.yearOfInvestment;
+    if (year) {
+      if (!summary.investmentsByYear[year]) {
+        summary.investmentsByYear[year] = { count: 0, amount: 0 };
+      }
+      summary.investmentsByYear[year].count++;
+      summary.investmentsByYear[year].amount += inv.amountInvested || 0;
+    }
+
+    const status = inv.currentStatus;
+    if (status) {
+      summary.investmentsByStatus[status] = (summary.investmentsByStatus[status] || 0) + 1;
+    }
+  });
+
+  // Calculate average stake
+  const stakesSum = investments.reduce((sum, inv) => sum + (inv.stakePercentage || 0), 0);
+  summary.averageStake = investments.length ? (stakesSum / investments.length).toFixed(2) : 0;
+
+  // Calculate ROI
+  summary.totalROI = summary.totalAmountInvested ? 
+    (((summary.totalCurrentValue + summary.totalReturns - summary.totalAmountInvested) / summary.totalAmountInvested) * 100).toFixed(2) : 0;
+
+  return summary;
+}

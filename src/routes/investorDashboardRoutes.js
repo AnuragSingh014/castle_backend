@@ -6,7 +6,11 @@ import {
   saveCFODashboardData,
   getCalculatedMetrics,
   deleteDashboardData,
-  saveInvestorProfile
+  saveInvestorProfile,
+  getInvestmentPortfolio,
+  addInvestment,
+  updateInvestment,
+  deleteInvestment
 } from '../controllers/investorDashboardController.js';
 
 const router = Router();
@@ -18,5 +22,11 @@ router.post('/:investorId/cfo-dashboard', saveCFODashboardData);
 router.get('/:investorId/calculated-metrics/:dashboardType', getCalculatedMetrics);
 router.delete('/:investorId', deleteDashboardData);
 // Add to routes/investorDashboardRoutes.js
+
+// Add these routes after your existing routes
+router.get('/:investorId/investments', getInvestmentPortfolio);
+router.post('/:investorId/investments', addInvestment);
+router.put('/:investorId/investments/:investmentId', updateInvestment);
+router.delete('/:investorId/investments/:investmentId', deleteInvestment);
 
 export default router;

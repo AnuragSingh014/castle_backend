@@ -21,7 +21,7 @@ import {
   setLoanRequestApproval
 } from '../controllers/adminController.js';
 import multer from 'multer';
-import { listInvestors, getInvestorDetails } from '../controllers/investorAdminController.js';
+import { listInvestors, getInvestorDetails, getInvestorInvestments } from '../controllers/investorAdminController.js';
 
 const router = Router();
 
@@ -63,6 +63,9 @@ router.post('/users/:userId/public-amount', setPublicAmount);
 // Add these routes after existing routes
 router.get('/investors', listInvestors);
 router.get('/investors/:investorId', getInvestorDetails);
+// Add to adminRoutes.js
+router.get('/investors/:investorId/investments', getInvestorInvestments);
+
 
 // Configure multer for image uploads
 const imageUpload = multer({
@@ -81,5 +84,7 @@ const imageUpload = multer({
 router.post('/upload-signature', imageUpload.single('signature'), uploadAdminSignature);
 router.get('/signature', getAdminSignature);
 router.get('/users/:userId/emandate/download', downloadUserEmandate);
+// Add this route to your adminRoutes.js
+router.get('/investors/:investorId/investments', getInvestorInvestments);
 
 export default router;

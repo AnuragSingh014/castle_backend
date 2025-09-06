@@ -245,3 +245,241 @@ export async function saveInvestorProfile(req, res) {
     }
   }
   
+  // Add these functions to your existing investorDashboardController.js
+
+// Get investor's investment portfolio
+// Replace the existing getInvestmentPortfolio function with this:
+export async function getInvestmentPortfolio(req, res) {
+  try {
+    const { investorId } = req.params;
+    
+    const doc = await InvestorDashboardData.findOne({ investorId });
+    if (!doc) {
+      return res.status(404).json({ success: false, error: 'Investor data not found' });
+    }
+
+    // ✅ FIX: Safely handle undefined investmentPortfolio
+    const investmentPortfolio = doc.investmentPortfolio || [];
+
+    // Deserialize additional details for each investment
+    const investments = investmentPortfolio.map(investment => {
+      const investmentObj = investment.toObject();
+      try {
+        investmentObj.additionalDetails = JSON.parse(investment.additionalDetails || '{}');
+      } catch (e) {
+        investmentObj.additionalDetails = {};
+      }
+      return investmentObj;
+    });
+
+    return res.json({
+      success: true,
+      data: {
+        investments,
+        summary: calculateInvestmentSummary(investments)
+      }
+    });
+  } catch (error) {
+    console.error('GetInvestmentPortfolio error:', error);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+
+
+// Add new investment
+export async function addInvestment(req, res) {
+  try {
+    const { investorId } = req.params;
+    const investmentData = req.body;
+
+    const doc = await getOrCreateDashboardData(investorId);
+
+    // Serialize additional details
+    const newInvestment = {
+      ...investmentData,
+      additionalDetails: JSON.stringify(investmentData.additionalDetails || {}),
+      updatedAt: new Date()
+    };
+
+    doc.investmentPortfolio.push(newInvestment);
+    doc.lastUpdated = new Date();
+
+    // Add audit entry
+    if (!doc.audit) doc.audit = [];
+    doc.audit.push({
+      actorType: 'investor',
+      actorId: String(investorId),
+      action: 'add_investment',
+      meta: { companyName: investmentData.companyName }
+    });
+
+    await doc.save();
+
+    return res.json({
+      success: true,
+      message: 'Investment added successfully',
+      data: { investmentId: doc.investmentPortfolio[doc.investmentPortfolio.length - 1]._id }
+    });
+  } catch (error) {
+    console.error('AddInvestment error:', error);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+
+// Update existing investment
+export async function updateInvestment(req, res) {
+  try {
+    const { investorId, investmentId } = req.params;
+    const updateData = req.body;
+
+    const doc = await InvestorDashboardData.findOne({ investorId });
+    if (!doc) {
+      return res.status(404).json({ success: false, error: 'Investor data not found' });
+    }
+
+    const investment = doc.investmentPortfolio.id(investmentId);
+    if (!investment) {
+      return res.status(404).json({ success: false, error: 'Investment not found' });
+    }
+
+    // Update fields
+    Object.keys(updateData).forEach(key => {
+      if (key === 'additionalDetails') {
+        investment[key] = JSON.stringify(updateData[key] || {});
+      } else {
+        investment[key] = updateData[key];
+      }
+    });
+    
+    investment.updatedAt = new Date();
+    doc.lastUpdated = new Date();
+
+    // Add audit entry
+    if (!doc.audit) doc.audit = [];
+    doc.audit.push({
+      actorType: 'investor',
+      actorId: String(investorId),
+      action: 'update_investment',
+      meta: { investmentId, companyName: investment.companyName }
+    });
+
+    await doc.save();
+
+    return res.json({
+      success: true,
+      message: 'Investment updated successfully'
+    });
+  } catch (error) {
+    console.error('UpdateInvestment error:', error);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+
+// Delete investment
+export async function deleteInvestment(req, res) {
+  try {
+    const { investorId, investmentId } = req.params;
+
+    const doc = await InvestorDashboardData.findOne({ investorId });
+    if (!doc) {
+      return res.status(404).json({ success: false, error: 'Investor data not found' });
+    }
+
+    const investment = doc.investmentPortfolio.id(investmentId);
+    if (!investment) {
+      return res.status(404).json({ success: false, error: 'Investment not found' });
+    }
+
+    const companyName = investment.companyName;
+    doc.investmentPortfolio.pull(investmentId);
+    doc.lastUpdated = new Date();
+
+    // Add audit entry
+    if (!doc.audit) doc.audit = [];
+    doc.audit.push({
+      actorType: 'investor',
+      actorId: String(investorId),
+      action: 'delete_investment',
+      meta: { investmentId, companyName }
+    });
+
+    await doc.save();
+
+    return res.json({
+      success: true,
+      message: 'Investment deleted successfully'
+    });
+  } catch (error) {
+    console.error('DeleteInvestment error:', error);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+
+// Replace the existing calculateInvestmentSummary function:
+function calculateInvestmentSummary(investments = []) {
+  const summary = {
+    totalInvestments: 0,
+    totalAmountInvested: 0,
+    totalCurrentValue: 0,
+    activeInvestments: 0,
+    exitedInvestments: 0,
+    totalReturns: 0,
+    averageStake: 0,
+    topPerformers: [],
+    investmentsByYear: {},
+    investmentsByStatus: {}
+  };
+
+  // ✅ Safety check for undefined/null investments
+  if (!Array.isArray(investments) || investments.length === 0) {
+    return summary;
+  }
+
+  summary.totalInvestments = investments.length;
+
+  investments.forEach(inv => {
+    // Total amounts
+    summary.totalAmountInvested += inv.amountInvested || 0;
+    
+    if (inv.currentStatus === 'Active') {
+      const currentValue = inv.currentValuation && inv.stakePercentage 
+        ? inv.currentValuation * (inv.stakePercentage / 100) 
+        : inv.amountInvested;
+      summary.totalCurrentValue += currentValue;
+      summary.activeInvestments++;
+    } else if (inv.currentStatus === 'Exited') {
+      summary.totalReturns += (inv.exitAmount || 0) - (inv.amountInvested || 0);
+      summary.exitedInvestments++;
+    }
+
+    // Group by year
+    const year = inv.yearOfInvestment;
+    if (year) {
+      if (!summary.investmentsByYear[year]) {
+        summary.investmentsByYear[year] = { count: 0, amount: 0 };
+      }
+      summary.investmentsByYear[year].count++;
+      summary.investmentsByYear[year].amount += inv.amountInvested || 0;
+    }
+
+    // Group by status
+    const status = inv.currentStatus;
+    if (status) {
+      if (!summary.investmentsByStatus[status]) {
+        summary.investmentsByStatus[status] = 0;
+      }
+      summary.investmentsByStatus[status]++;
+    }
+  });
+
+  // Calculate average stake
+  const stakesSum = investments.reduce((sum, inv) => sum + (inv.stakePercentage || 0), 0);
+  summary.averageStake = investments.length ? (stakesSum / investments.length).toFixed(2) : 0;
+
+  // Calculate ROI
+  summary.totalROI = summary.totalAmountInvested ? 
+    (((summary.totalCurrentValue + summary.totalReturns - summary.totalAmountInvested) / summary.totalAmountInvested) * 100).toFixed(2) : 0;
+
+  return summary;
+}
+
