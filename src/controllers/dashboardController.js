@@ -43,7 +43,7 @@ async function getOrCreateDashboard(userId) {
         loanDetails: 'locked',
         ceoDashboard: 'locked',
         cfoDashboard: 'locked',
-        loanRequest: 'locked' // ✅ NEW: Default to locked
+        loanRequest: 'open'// ✅ NEW: Default to open
       }
     });
   } else {
@@ -69,7 +69,7 @@ export async function checkLoanRequestAccess(req, res, next) {
     
     // Check if loan request section is approved
     const approvalStatus = doc.approvals?.loanRequest || 'locked';
-    if (approvalStatus !== 'approved') {
+    if (approvalStatus !== 'approved' && approvalStatus !== 'open') {
       return res.status(403).json({ 
         success: false,
         error: 'access_denied', 

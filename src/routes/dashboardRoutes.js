@@ -59,8 +59,8 @@ router.post('/:userId/ddform', ensureSectionWritable, saveDDFormData);
 router.post('/:userId/loan-details', ensureSectionWritable, saveLoanDetailsData);
 
 // ✅ NEW: Loan Request routes with gating middleware applied
-router.post('/:userId/loan-request', checkLoanRequestAccess, saveLoanRequest);
-router.get('/:userId/loan-request', checkLoanRequestAccess, getLoanRequest);
+router.post('/:userId/loan-request',  saveLoanRequest);
+router.get('/:userId/loan-request',  getLoanRequest);
 
 // Generic endpoint (applies gate if not free)
 router.post('/:userId/component/:component', async (req, res, next) => {
