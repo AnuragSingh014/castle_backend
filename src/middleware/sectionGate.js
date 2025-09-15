@@ -1,7 +1,7 @@
 // middleware/sectionGate.js
 import DashboardData from '../models/DashboardData.js';
 
-const FREE_SECTIONS = new Set(['information','overview', 'loanRequest']);
+const FREE_SECTIONS = new Set(['information','overview', 'loanRequest', 'informationSheet']);
 
 export async function ensureSectionWritable(req, res, next) {
   const { userId } = req.params;

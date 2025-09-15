@@ -5,7 +5,7 @@ const ApprovalSchema = new mongoose.Schema({
   // admin gate per section
   information: { type: String, enum: ['open','locked','approved'], default: 'open' },
   overview: { type: String, enum: ['open','locked','approved'], default: 'open' },
-  informationSheet: { type: String, enum: ['open','locked','approved'], default: 'locked' },
+  informationSheet: { type: String, enum: ['open','locked','approved'], default: 'approved' },
   beneficialOwnerCertification: { type: String, enum: ['open','locked','approved'], default: 'locked' },
   ddform: { type: String, enum: ['open','locked','approved'], default: 'locked' },
   loanDetails: { type: String, enum: ['open','locked','approved'], default: 'locked' },

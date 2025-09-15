@@ -13,7 +13,7 @@ async function ensureApprovalFields(doc) {
   // ✅ Use 'approved' instead of 'open' to match frontend
   if (!approvals.information) approvals.information = 'approved';
   if (!approvals.overview) approvals.overview = 'approved';
-  if (!approvals.informationSheet) approvals.informationSheet = 'locked';
+  if (!approvals.informationSheet) approvals.informationSheet = 'approved';
   if (!approvals.beneficialOwnerCertification) approvals.beneficialOwnerCertification = 'locked';
   if (!approvals.companyReferences) approvals.companyReferences = 'locked';
   if (!approvals.ddform) approvals.ddform = 'locked';
@@ -36,7 +36,7 @@ async function getOrCreateDashboard(userId) {
       approvals: {
         information: 'approved',
         overview: 'approved',
-        informationSheet: 'locked',
+        informationSheet: 'approved',
         beneficialOwnerCertification: 'locked',
         companyReferences: 'locked',
         ddform: 'locked',
