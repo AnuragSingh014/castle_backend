@@ -13,7 +13,7 @@ const ApprovalSchema = new mongoose.Schema({
   ceoDashboard: { type: String, enum: ['open','locked','approved'], default: 'locked' },
   cfoDashboard: { type: String, enum: ['open','locked','approved'], default: 'locked' },
   // ✅ NEW: Add loan request approval field for gating
-  loanRequest: { type: String, enum: ['open','locked','approved'], default: 'locked' },
+  loanRequest: { type: String, enum: ['open','locked','approved'], default: 'open' },
 }, { _id: false });
 
 const AuditEntrySchema = new mongoose.Schema({
