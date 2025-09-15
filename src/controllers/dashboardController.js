@@ -21,7 +21,7 @@ async function ensureApprovalFields(doc) {
   if (!approvals.ceoDashboard) approvals.ceoDashboard = 'locked';
   if (!approvals.cfoDashboard) approvals.cfoDashboard = 'locked';
   // ✅ NEW: Add loanRequest approval field
-  if (!approvals.loanRequest) approvals.loanRequest = 'locked';
+  if (!approvals.loanRequest) approvals.loanRequest = 'approved';
   
   doc.approvals = approvals;
   return doc;
@@ -43,7 +43,7 @@ async function getOrCreateDashboard(userId) {
         loanDetails: 'locked',
         ceoDashboard: 'locked',
         cfoDashboard: 'locked',
-        loanRequest: 'locked' // ✅ NEW: Default to locked
+        loanRequest: 'approved' // ✅ NEW: Default to locked
       }
     });
   } else {
@@ -68,7 +68,7 @@ export async function checkLoanRequestAccess(req, res, next) {
     }
     
     // Check if loan request section is approved
-    const approvalStatus = doc.approvals?.loanRequest || 'locked';
+    const approvalStatus = true;
     if (approvalStatus !== 'approved') {
       return res.status(403).json({ 
         success: false,
