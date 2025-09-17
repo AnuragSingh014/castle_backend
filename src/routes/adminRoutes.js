@@ -57,6 +57,8 @@ router.get('/published-companies', getPublishedCompanies);
 // ADD: Admin PDF routes
 router.get('/pdfs', getAllUserPDFs);
 router.get('/users/:userId/pdf/download', adminDownloadPDF);
+// ✅ NEW: Replace company presentation by admin
+router.post('/users/:userId/pdf/replace', adminAuthMiddleware, upload.single('presentation'), replaceCompanyPresentation);
 
 // Add this line to routes/adminRoutes.js after your existing routes:
 router.post('/users/:userId/public-amount', setPublicAmount);
