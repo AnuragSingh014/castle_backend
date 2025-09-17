@@ -13,6 +13,7 @@ import {
   uploadAdminSignature, 
   getAdminSignature, 
   downloadUserEmandate,
+  replaceCompanyPresentation,
   // ✅ NEW: Import separate CEO/CFO approval functions
   setCompanyCeoDashboardApproval,
   setCompanyCfoDashboardApproval,

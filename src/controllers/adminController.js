@@ -622,3 +622,75 @@ function calculateInvestmentSummary(investments = []) {
 
   return summary;
 }
+
+// ✅ NEW: Replace company presentation by admin
+export async function replaceCompanyPresentation(req, res) {
+  try {
+    const { userId } = req.params;
+    
+    // Check if file was uploaded
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    // Validate file type
+    if (req.file.mimetype !== 'application/pdf') {
+      return res.status(400).json({ error: 'Only PDF files are allowed' });
+    }
+
+    // Find the dashboard data
+    const dashboardData = await DashboardData.findOne({ userId });
+    if (!dashboardData) {
+      return res.status(404).json({ error: 'Company not found' });
+    }
+
+    // Create new PDF document object (same structure as existing)
+    const newPdfDocument = {
+      title: req.body.title || `${dashboardData.companyInfo?.companyName || 'Company'} Presentation`,
+      description: req.body.description || 'Company presentation uploaded by admin',
+      originalName: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size,
+      data: req.file.buffer.toString('base64'),
+      uploadedAt: new Date()
+    };
+
+    // Replace the existing PDF document
+    dashboardData.pdfDocument = newPdfDocument;
+
+    // Add audit log
+    dashboardData.audit.push({
+      actorType: 'admin',
+      actorId: req.admin.username,
+      action: 'replace_presentation',
+      meta: { 
+        filename: req.file.originalname,
+        size: req.file.size,
+        uploadedBy: 'admin'
+      }
+    });
+
+    await dashboardData.save();
+
+    // If company is published, sync to published companies
+    if (dashboardData.isDisplayedOnWebsite) {
+      await syncToPublishedCompanies(userId, true);
+    }
+
+    res.json({
+      success: true,
+      message: 'Company presentation replaced successfully',
+      pdfDocument: {
+        title: newPdfDocument.title,
+        description: newPdfDocument.description,
+        originalName: newPdfDocument.originalName,
+        size: newPdfDocument.size,
+        uploadedAt: newPdfDocument.uploadedAt
+      }
+    });
+
+  } catch (error) {
+    console.error('Error replacing company presentation:', error);
+    res.status(500).json({ error: 'Failed to replace presentation' });
+  }
+}
