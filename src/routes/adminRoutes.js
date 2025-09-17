@@ -26,6 +26,18 @@ import { listInvestors, getInvestorDetails, getInvestorInvestments } from '../co
 
 const router = Router();
 
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 15 * 1024 * 1024 }, // 15MB limit for PDFs
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'application/pdf') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only PDF files allowed'), false);
+    }
+  }
+});
 // Public admin routes (no auth required)
 router.post('/login', adminLogin);
 
